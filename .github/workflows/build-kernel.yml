@@ -81,10 +81,10 @@ jobs:
             if echo "$FLAVOR_STATUS" | grep -q "building"; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
               sleep 600
-            if echo "$FLAVOR_STATUS" | grep -q "failed"; then
+            elif echo "$FLAVOR_STATUS" | grep -q "failed"; then
               echo "Error: Build cluster reported compilation failure."
               exit 1
-            if echo "$FLAVOR_STATUS" | grep -q "succeeded"; then
+            elif echo "$FLAVOR_STATUS" | grep -q "succeeded"; then
               echo "Success: OBS compilation loop complete!"
               break
             else
