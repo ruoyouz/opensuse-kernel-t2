@@ -1,0 +1,126 @@
+name: Stateless T2 openSUSE Kernel Pipeline (Password Auth)
+on:
+  schedule:
+    - cron: '0 2 * * 2' # Tuesdays at 2:00 AM
+  workflow_dispatch:   # Allows manual execution from the Actions tab
+
+permissions:
+  contents: write      # Required to create and publish GitHub Releases
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build and Packaging Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osc jq wget tar bzip2 rpm
+
+      - name: Configure OSC Credentials
+        run: |
+          mkdir -p ~/.config/osc
+          cat <<EOF > ~/.config/osc/oscrc
+          [general]
+          apiurl = https://api.opensuse.org
+          [https://api.opensuse.org]
+          user = ${{ secrets.OBS_USER }}
+          pass = ${{ secrets.OBS_PASSWORD }}
+          EOF
+
+      # --- STAGE 1: FETCH T2 PATCHES & PUSH TO OBS ---
+      - name: Process Patches and Update OBS Source
+        id: patch_sync
+        run: |
+          # 1. Checkout your OBS kernel-source package directory
+          osc co home:${{ secrets.OBS_USER }}/kernel-source-t2
+          cd home:${{ secrets.OBS_USER }}/kernel-source-t2
+
+          # Back up the existing patch archive to check for changes later
+          [ -f patches.addon.tar.bz2 ] && mv patches.addon.tar.bz2 ../old_patches.tar.bz2 || true
+
+          # 2. Rebuild the patches addon layout dynamically from the T2 repo
+          mkdir -p patches.addon/x86_64/default
+          git clone --depth=1 https://github.com/t2linux/linux-t2-patches.git t2-source
+          cp t2-source/*.patch patches.addon/x86_64/default/
+
+          cd patches.addon/x86_64/default/
+          ls -1 *.patch > series.conf
+          cd ../../../
+
+          tar -cjf patches.addon.tar.bz2 patches.addon/
+          rm -rf patches.addon t2-source
+
+          # 3. Compare archives to prevent duplicate builds if nothing changed
+          # Note: config.addon.tar.bz2 is already safely inside this folder thanks to 'osc co'
+          if [ -f ../old_patches.tar.bz2 ] && cmp -s patches.addon.tar.bz2 ../old_patches.tar.bz2 && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            echo "Patches are unchanged. Stopping pipeline to prevent redundant building."
+            echo "TRIGGER_BUILD=false" >> $GITHUB_OUTPUT
+          else
+            echo "Updates found or manual run requested. Pushing to OBS..."
+            # osc addremove detects our new patch archive while safely leaving config.addon.tar.bz2 alone
+            osc addremove || true
+            osc ci -m "Automated Sync: Updated T2 patchsets"
+            echo "TRIGGER_BUILD=true" >> $GITHUB_OUTPUT
+          fi
+
+      # --- STAGE 2: WAIT FOR OBS MULTIBUILD FLAVORS ---
+      - name: Monitor OBS Compilation Pipeline
+        if: steps:patch_sync.outputs.TRIGGER_BUILD == 'true'
+        run: |
+          PROJECT="home:${{ secrets.OBS_USER }}"
+          PACKAGE="kernel-source-t2"
+
+          echo "Awaiting compilation completion for kernel-default flavor..."
+          while true; do
+            STATUS=$(osc results $PROJECT $PACKAGE --xml)
+            FLAVOR_STATUS=$(echo "$STATUS" | grep 'package="kernel-source-t2:kernel-default"' || true)
+
+            if echo "$FLAVOR_STATUS" | grep -q 'code="building"'; then
+              echo "Kernel is still compiling... sleeping for 10 minutes."
+              sleep 600
+            elif echo "$FLAVOR_STATUS" | grep -q 'code="failed"'; then
+              echo "Error: Build cluster reported compilation failure."
+              exit 1
+            elif echo "$FLAVOR_STATUS" | grep -q 'code="succeeded"'; then
+              echo "Success: OBS compilation loop complete!"
+              break
+            else
+              echo "Waiting for build job to enter the queue... sleeping 1 minute."
+              sleep 60
+            fi
+          done
+
+      # --- STAGE 3: DOWNLOAD BINARIES & PUBLISH TO GITHUB ---
+      - name: Fetch RPMs and Deploy GitHub Release
+        if: steps:patch_sync.outputs.TRIGGER_BUILD == 'true'
+        run: |
+          PROJECT="home:${{ secrets.OBS_USER }}"
+
+          mkdir bin-delivery
+          cd bin-delivery
+
+          # Download the built binaries for the kernel-default multibuild sub-package
+          osc getbinaries $PROJECT kernel-source-t2:kernel-default openSUSE_Tumbleweed x86_64
+
+          # Read the exact compiled package version straight from the RPM metadata
+          TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)
+          DETECTED_VERSION=$(rpm -qp --qf "%{VERSION}-%{RELEASE}" "$TARGET_RPM")
+          echo "Detected version payload: $DETECTED_VERSION"
+
+          # Cross-reference the GitHub API to ensure this release doesn't already exist
+          RELEASE_EXISTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/v$DETECTED_VERSION | jq -r '.message' || true)
+
+          if [ "$RELEASE_EXISTS" = "Not Found" ]; then
+            echo "Deploying fresh GitHub release footprint: v$DETECTED_VERSION"
+            gh release create "v$DETECTED_VERSION" *.rpm \
+              --title "Apple T2 Kernel v$DETECTED_VERSION" \
+              --notes "Automated tracking deployment for Apple T2 Security Chip hardware configurations on openSUSE architectures."
+          else
+            echo "Release entry v$DETECTED_VERSION already exists on GitHub. Skipping asset distribution."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
