@@ -76,7 +76,7 @@ jobs:
           # Initial sleep to allow OBS to queue the build job
           sleep 120
           while true; do
-            FLAVOR_STATUS = $(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
+            FLAVOR_STATUS=$(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
 
             if [ "$FLAVOR_STATUS" == "building" ]; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
