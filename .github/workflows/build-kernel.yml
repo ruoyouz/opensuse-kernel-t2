@@ -74,6 +74,7 @@ jobs:
           PACKAGE="kernel-source-t2"
 
           echo "Awaiting compilation completion for kernel-default flavor..."
+          sleep 60 # Initial wait to allow OBS to queue the build
           while true; do
             STATUS=$(osc results $PROJECT $PACKAGE --xml)
             FLAVOR_STATUS=$(echo "$STATUS" | grep 'package="kernel-source-t2:kernel-default"' || true)
