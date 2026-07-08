@@ -10,6 +10,9 @@ permissions:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+    env:
+      PROJECT: home:${{ secrets.OBS_USER }}
+      PACKAGE: kernel-source-t2
     steps:
       - name: Checkout GitHub Repository
         uses: actions/checkout@v4
@@ -35,9 +38,8 @@ jobs:
         id: patch_sync
         run: |
           # 1. Checkout your OBS kernel-source package directory
-          osc co home:${{ secrets.OBS_USER }}/kernel-source-t2
-          cd home:${{ secrets.OBS_USER }}/kernel-source-t2
-
+          osc co ${{ env.PROJECT }}/${{ env.PACKAGE }}
+          cd ${{ env.PROJECT }}/${{ env.PACKAGE }}
           # Back up the existing patch archive to check for changes later
           [ -f patches.addon.tar.bz2 ] && mv patches.addon.tar.bz2 ../old_patches.tar.bz2 || true
 
@@ -70,23 +72,19 @@ jobs:
       - name: Monitor OBS Compilation Pipeline
         if: steps.patch_sync.outputs.TRIGGER_BUILD == 'true'
         run: |
-          PROJECT="home:${{ secrets.OBS_USER }}"
-          PACKAGE="kernel-source-t2"
-
           echo "Awaiting compilation completion for kernel-default flavor..."
           # Initial sleep to allow OBS to queue the build job
           sleep 120
           while true; do
-            STATUS=$(osc results $PROJECT $PACKAGE --xml)
-            FLAVOR_STATUS=$(echo "$STATUS" | grep 'package="kernel-source-t2:kernel-default"' || true)
+            FLAVOR_STATUS = $(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
 
-            if echo "$FLAVOR_STATUS" | grep -q 'code="building"'; then
+            if [ "$FLAVOR_STATUS" == "building" ]; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
               sleep 600
-            elif echo "$FLAVOR_STATUS" | grep -q 'code="failed"'; then
+            elif [ "$FLAVOR_STATUS" == "failed" ]; then
               echo "Error: Build cluster reported compilation failure."
               exit 1
-            elif echo "$FLAVOR_STATUS" | grep -q 'code="succeeded"'; then
+            elif [ "$FLAVOR_STATUS" == "succeeded" ]; then
               echo "Success: OBS compilation loop complete!"
               break
             else
@@ -99,13 +97,11 @@ jobs:
       - name: Fetch RPMs and Deploy GitHub Release
         if: steps.patch_sync.outputs.TRIGGER_BUILD == 'true'
         run: |
-          PROJECT="home:${{ secrets.OBS_USER }}"
-
           mkdir bin-delivery
           cd bin-delivery
 
           # Download the built binaries for the kernel-default multibuild sub-package
-          osc getbinaries $PROJECT kernel-source-t2:kernel-default openSUSE_Tumbleweed x86_64
+          osc getbinaries ${{ env.PROJECT }} ${{ env.PACKAGE }}:kernel-default openSUSE_Tumbleweed x86_64
 
           # Read the exact compiled package version straight from the RPM metadata
           TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)
