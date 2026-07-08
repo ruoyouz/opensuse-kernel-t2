@@ -77,7 +77,7 @@ jobs:
           sleep 60
           while true; do
             FLAVOR_STATUS=$(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
-            echo $(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }})
+            echo "$FLAVOR_STATUS"
             if [ "$FLAVOR_STATUS" == "building" ]; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
               sleep 600
