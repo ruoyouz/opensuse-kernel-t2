@@ -76,15 +76,15 @@ jobs:
           # Initial sleep to allow OBS to queue the build job
           sleep 60
           while true; do
-            FLAVOR_STATUS=$(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
-            echo "$FLAVOR_STATUS"
-            if [ "$FLAVOR_STATUS" == "building" ]; then
+            FLAVOR_STATUS=$(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64')
+          # osc version in github actions does not support --format %(code)s so using grep instead of ==
+            if echo "$FLAVOR_STATUS" | grep -q "building"; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
               sleep 600
-            elif [ "$FLAVOR_STATUS" == "failed" ]; then
+            if echo "$FLAVOR_STATUS" | grep -q "failed"; then
               echo "Error: Build cluster reported compilation failure."
               exit 1
-            elif [ "$FLAVOR_STATUS" == "succeeded" ]; then
+            if echo "$FLAVOR_STATUS" | grep -q "succeeded"; then
               echo "Success: OBS compilation loop complete!"
               break
             else
