@@ -1,4 +1,4 @@
-name: Stateless T2 openSUSE Kernel Pipeline (Password Auth)
+name: Build T2 openSUSE Kernel
 on:
   schedule:
     - cron: '0 2 * * 2' # Tuesdays at 2:00 AM
@@ -68,7 +68,7 @@ jobs:
 
       # --- STAGE 2: WAIT FOR OBS MULTIBUILD FLAVORS ---
       - name: Monitor OBS Compilation Pipeline
-        if: steps:patch_sync.outputs.TRIGGER_BUILD == 'true'
+        if: steps.patch_sync.outputs.TRIGGER_BUILD == 'true'
         run: |
           PROJECT="home:${{ secrets.OBS_USER }}"
           PACKAGE="kernel-source-t2"
@@ -95,7 +95,7 @@ jobs:
 
       # --- STAGE 3: DOWNLOAD BINARIES & PUBLISH TO GITHUB ---
       - name: Fetch RPMs and Deploy GitHub Release
-        if: steps:patch_sync.outputs.TRIGGER_BUILD == 'true'
+        if: steps.patch_sync.outputs.TRIGGER_BUILD == 'true'
         run: |
           PROJECT="home:${{ secrets.OBS_USER }}"
 
