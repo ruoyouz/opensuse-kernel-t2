@@ -74,10 +74,10 @@ jobs:
         run: |
           echo "Awaiting compilation completion for kernel-default flavor..."
           # Initial sleep to allow OBS to queue the build job
-          sleep 120
+          sleep 60
           while true; do
             FLAVOR_STATUS=$(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }} --arch 'x86_64' --format '%(code)s')
-
+            echo $(osc results ${{ env.PROJECT }} ${{ env.PACKAGE }})
             if [ "$FLAVOR_STATUS" == "building" ]; then
               echo "Kernel is still compiling... sleeping for 10 minutes."
               sleep 600
