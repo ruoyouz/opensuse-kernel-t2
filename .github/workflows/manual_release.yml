@@ -1,0 +1,60 @@
+name: Manually Fetch RPM from OBS and Publish to GitHub Release
+on:
+  workflow_dispatch:   # Allows manual execution from the Actions tab
+
+permissions:
+  contents: write      # Required to create and publish GitHub Releases
+
+jobs:
+  manual_release:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT: home:${{ secrets.OBS_USER }}
+      PACKAGE: kernel-source-t2
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build and Packaging Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osc jq wget tar bzip2 rpm
+
+      - name: Configure OSC Credentials
+        run: |
+          mkdir -p ~/.config/osc
+          cat <<EOF > ~/.config/osc/oscrc
+          [general]
+          apiurl = https://api.opensuse.org
+          [https://api.opensuse.org]
+          user = ${{ secrets.OBS_USER }}
+          pass = ${{ secrets.OBS_PASSWORD }}
+          EOF
+
+      - name: Fetch RPMs and Deploy GitHub Release
+        run: |
+          mkdir bin-delivery
+          cd bin-delivery
+
+          # Download the built binaries for the kernel-default multibuild sub-package
+          osc getbinaries ${{ env.PROJECT }} ${{ env.PACKAGE }}:kernel-default openSUSE_Factory_standard x86_64
+
+          # Read the exact compiled package version straight from the RPM metadata
+          TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)
+          DETECTED_VERSION=$(rpm -qp --qf "%{VERSION}-%{RELEASE}" "$TARGET_RPM")
+          echo "Detected version payload: $DETECTED_VERSION"
+
+          # Cross-reference the GitHub API to ensure this release doesn't already exist
+          RELEASE_EXISTS=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/tags/v$DETECTED_VERSION | jq -r '.message' || true)
+
+          if [ "$RELEASE_EXISTS" = "Not Found" ]; then
+            echo "Deploying fresh GitHub release footprint: v$DETECTED_VERSION"
+            gh release create "v$DETECTED_VERSION" *.rpm \
+              --title "Apple T2 Kernel v$DETECTED_VERSION" \
+              --notes "Automated tracking deployment for Apple T2 Security Chip hardware configurations on openSUSE architectures."
+          else
+            echo "Release entry v$DETECTED_VERSION already exists on GitHub. Skipping asset distribution."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
