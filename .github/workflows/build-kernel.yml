@@ -97,11 +97,9 @@ jobs:
       - name: Fetch RPMs and Deploy GitHub Release
         if: steps.patch_sync.outputs.TRIGGER_BUILD == 'true'
         run: |
-          mkdir bin-delivery
-          cd bin-delivery
-
           # Download the built binaries for the kernel-default multibuild sub-package
           osc getbinaries ${{ env.PROJECT }} ${{ env.PACKAGE }}:kernel-default openSUSE_Factory_standard x86_64
+          cd binaries
 
           # Read the exact compiled package version straight from the RPM metadata
           TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)

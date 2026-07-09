@@ -1,4 +1,4 @@
-name: Manually Fetch RPM from OBS and Publish to GitHub Release
+name: Manually Fetch and Release RPM
 on:
   workflow_dispatch:   # Allows manual execution from the Actions tab
 
@@ -33,11 +33,9 @@ jobs:
 
       - name: Fetch RPMs and Deploy GitHub Release
         run: |
-          mkdir bin-delivery
-          cd bin-delivery
-
           # Download the built binaries for the kernel-default multibuild sub-package
           osc getbinaries ${{ env.PROJECT }} ${{ env.PACKAGE }}:kernel-default openSUSE_Factory_standard x86_64
+          cd binaries
 
           # Read the exact compiled package version straight from the RPM metadata
           TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)
