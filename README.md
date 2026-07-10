@@ -1,5 +1,6 @@
 # openSUSE Kernel Compiled with Apple T2 Support
 [![build result](https://build.opensuse.org/projects/home:zruoyou/packages/kernel-source-t2/badge.svg?type=default)](https://build.opensuse.org/package/show/home:zruoyou/kernel-source-t2)
+[![Build T2 openSUSE Kernel](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml/badge.svg?event=schedule)](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml)
 
 __NOT TESTED (yet)__
 
