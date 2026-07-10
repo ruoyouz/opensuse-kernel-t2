@@ -44,13 +44,11 @@ jobs:
           [ -f patches.addon.tar.bz2 ] && mv patches.addon.tar.bz2 ../old_patches.tar.bz2 || true
 
           # 2. Rebuild the patches addon layout dynamically from the T2 repo
-          mkdir -p patches.addon/x86_64/default
+          mkdir -p patches.addon/
           git clone --depth=1 https://github.com/t2linux/linux-t2-patches.git t2-source
-          cp t2-source/*.patch patches.addon/x86_64/default/
+          cp t2-source/*.patch patches.addon/
 
-          cd patches.addon/x86_64/default/
-          ls -1 *.patch > series.conf
-          cd ../../../
+          ls -1 patches.addon/*.patch >> series.conf
 
           tar -cjf patches.addon.tar.bz2 patches.addon/
           rm -rf patches.addon t2-source
@@ -102,7 +100,7 @@ jobs:
           cd binaries
 
           # Read the exact compiled package version straight from the RPM metadata
-          TARGET_RPM=$(ls kernel-default-*.rpm | grep -v 'nosrc' | head -n 1)
+          TARGET_RPM=$(ls kernel-*.rpm | grep -v 'nosrc' | head -n 1)
           DETECTED_VERSION=$(rpm -qp --qf "%{VERSION}-%{RELEASE}" "$TARGET_RPM")
           echo "Detected version payload: $DETECTED_VERSION"
 
