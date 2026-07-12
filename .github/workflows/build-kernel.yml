@@ -65,9 +65,7 @@ jobs:
           git clone --depth=1 https://github.com/t2linux/linux-t2-patches.git t2-source
           cp t2-source/*.patch patches.addon/
 
-          # remove stale copy of patch list
-          rm series.conf
-          ls -1 patches.addon/*.patch >> series.conf
+          ls -1 patches.addon/*.patch > patches.addon/series.conf
 
           tar -cjf patches.addon.tar.bz2 patches.addon/
           rm -rf patches.addon t2-source
