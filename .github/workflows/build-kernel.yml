@@ -33,13 +33,30 @@ jobs:
           pass = ${{ secrets.OBS_PASSWORD }}
           EOF
 
+      - name: Restore OBS Cache
+        uses: actions/cache@v4
+        id: obs_cache
+        with:
+          path: ${{ env.PROJECT }}/${{ env.PACKAGE }}
+          key: obs-${{ env.PACKAGE }}-${{ github.run_id }}
+          restore-keys: |
+            obs-${{ env.PACKAGE }}-
+
       # --- STAGE 1: FETCH T2 PATCHES & PUSH TO OBS ---
       - name: Process Patches and Update OBS Source
         id: patch_sync
         run: |
           # 1. Checkout your OBS kernel-source package directory
-          osc co ${{ env.PROJECT }}/${{ env.PACKAGE }}
-          cd ${{ env.PROJECT }}/${{ env.PACKAGE }}
+          if [ -d "${{ env.PROJECT }}/${{ env.PACKAGE }}" ]; then
+            echo "Cache hit. Running osc up."
+            cd ${{ env.PROJECT }}/${{ env.PACKAGE }}
+            osc up
+          else
+            echo "Cache miss. Checking out the package."
+            osc co ${{ env.PROJECT }}/${{ env.PACKAGE }}
+            cd ${{ env.PROJECT }}/${{ env.PACKAGE }}
+          fi
+
           # Back up the existing patch archive to check for changes later
           [ -f patches.addon.tar.bz2 ] && mv patches.addon.tar.bz2 ../old_patches.tar.bz2 || true
 
