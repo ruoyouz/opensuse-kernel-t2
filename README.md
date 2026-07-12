@@ -1,8 +1,8 @@
 # openSUSE Kernel Compiled with Apple T2 Support
 [![build result](https://build.opensuse.org/projects/home:zruoyou/packages/kernel-source-t2/badge.svg?type=default)](https://build.opensuse.org/package/show/home:zruoyou/kernel-source-t2)
-[![Build T2 openSUSE Kernel](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml/badge.svg?event=schedule)](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml)
+[![Build T2 openSUSE Kernel](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml/badge.svg)](https://github.com/ruoyouz/opensuse-kernel-t2/actions/workflows/build-kernel.yml)
 
-__NOT TESTED (yet)__
+__Working as of 2026-07-12__ (at least in my limited testing)
 
 This repo is only used for build triggering and release archiving. The actual building process is hosted on [Open Build Service](https://build.opensuse.org/package/show/home:zruoyou/kernel-source-t2).
 
@@ -14,7 +14,9 @@ T2 patches are pull from [t2linux/linux-t2-patches](https://github.com/t2linux/l
 2. `echo apple-bce | sudo tee /etc/modules-load.d/t2.conf`
 3. `echo "force_drivers+=\" apple-bce \"" | sudo tee /etc/dracut.conf.d/t2linux-modules.conf`
 4. `sudo dracut --force`
-5. (Optional) Install [tiny-dfr](https://github.com/AsahiLinux/tiny-dfr) for touch-bar and [t2fanrd](https://github.com/GnomedDev/T2FanRD) for fan control.
+5. (Optional) Install [t2fanrd](https://github.com/GnomedDev/T2FanRD) for fan control. Available in my [OBS repo](https://download.opensuse.org/repositories/home:zruoyou/openSUSE_Tumbleweed/).
+
+Note: [tiny-dfr](https://github.com/AsahiLinux/tiny-dfr) does not appear to work with Intel T2 Macs(?)
 
 ## Common issues ##
 ### Fix NM notification ###
@@ -53,3 +55,4 @@ ExecStop=/usr/bin/modprobe apple-bce
 [Install]
 WantedBy=sleep.target
 ```
+On my setup I had to uncomment those 4 lines, YMMV.
